@@ -1,4 +1,9 @@
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 import selenium
@@ -11,7 +16,7 @@ from time import sleep
 from os import get_terminal_size
 from sys import platform
 from json import load, dump
-from requests import get
+
 ua = UserAgent()
 
 
@@ -36,7 +41,7 @@ if platform == "Win32":
     driverPath = "./driver-s/windows/chromedriver"
 elif platform == "linux":
     accountsFilePath = os.environ["HOME"] + "/accounts.json"
-    driverPath = "./driver-s/linux/chromedriver"
+    driverPath = os.path.join(os.getcwd(), "driver-s/linux/chromedriver")
 
 class Mediafire:
     def __init__(self, headless=False):
@@ -44,6 +49,7 @@ class Mediafire:
         self.options.add_argument("--headless" if headless else "pass")
         self.options.add_argument('log-level=3')
         self.options.add_argument('--disable-dev-shm-usage')
+        self.options.add_argument('window-size=1042x546')
         self.chrome = webdriver.Chrome(options=self.options, service=Service(driverPath))
         self.headless = True if "--headless" in self.options.arguments else False
         self.chrome.set_window_position(0, 0)
@@ -64,7 +70,6 @@ class Mediafire:
 
         self.waitfor = tools.waitfor
         self.file_links = []
-
     def login(self, email, password):
         self.email = email
         self.password = password
@@ -74,44 +79,47 @@ class Mediafire:
             self.waitfor(self.css_selector, "input[type='password']", timeout=10).send_keys(password)
             self.waitfor(self.css_selector, "button[type='submit']", timeout=10).click()
         except:
-            TimeoutError
-
+            raise TimeoutError
         while True:
             if self.chrome.current_url == "https://app.mediafire.com/myfiles":
                 break
-            else:
-                self.chrome.get("https://app.mediafire.com/myfiles")
         print("Login to", self.email)
-        
         self.accountsFile[self.email] = {
             "password": self.password
         }
         self.write_to_local(self.accountsFile)
-        
-        self.closepopup()
-    def upload(self, directory, file):
+
+    def upload(self, directory, file, target_directory="myfiles"):
+        if target_directory != "myfiles":
+            try:
+                self.chrome.get("https://app.mediafire.com/"+self.get_dirs(find=target_directory).split("/")[-2])
+                while True:
+                    a = self.waitfor(self.css_selector, "button[title='Upload files']", timeout=10)
+                    print(self.chrome.execute_script("""return document.querySelector("button[title='Upload files']").click()"""))
+                    self.chrome.save_screenshot("-upload-1.png")
+                    break
+            except AttributeError:
+                raise FolderNotFound
         path = os.path.join(directory, file)
         target = ""
         
-        while True:
-            try:
-                self.waitfor(self.css_selector, "button[aria-label='Upload files']", timeout=3).click()
-                self.waitfor(self.css_selector, "div[data-text-as-pseudo-element='Select Files to Upload']", timeout=3)
-                break
-            except:
-                self.relogin()
+        #while True:
+        #    #try:
+        #    #    self.waitfor(self.css_selector, "button[aria-label='Upload files']", timeout=3).click()
+        #    #    self.waitfor(self.css_selector, "div[data-text-as-pseudo-element='Select Files to Upload']", timeout=3)
+        #    #    break
+        #    #except:
+        #    #    self.chrome.save_screenshot("screenshot.png")
+        #    #    self.relogin()
         self.waitfor(self.css_selector, "input[type='file']").send_keys(path)
         
 
-        if self.headless:
-            xpath = '/html/body/div/div/div[1]/div[2]/div/div/div/div[2]/div/div[1]/div/div/div/div/div[4]/div/div'
-            
-        else:
-            xpath = '/html/body/div[1]/div/div[1]/div[3]/div/div/div/div[2]/div/div[1]/div/div/div/div/div[4]/div/div'
+        xpath = '/html/body/div/div/div[1]/div[3]/div/div/div/div[2]/div/div[1]/div/div/div/div/div[4]/div[1]/div'
+        
         while True:
             try:
-
                 status = self.waitfor(self.xpath, xpath, timeout=3, silent=True).get_attribute("data-text-as-pseudo-element")
+                print(status)
                 print(path, status, end=f"{(get_terminal_size()[0]-(len(path)+len(status)+2))*' '}\r")
                 if status == "Queued":
                     try:
@@ -121,7 +129,6 @@ class Mediafire:
                 elif status == "Conflict":
                     raise Conflict
                 elif status == "Completed":
-                    return "Completed"
                     raise Completed
                 elif status == "Not enough storage":
                     raise NotEnoughStorage
@@ -132,13 +139,12 @@ class Mediafire:
     def relogin(self):
         self.login(self.email, self.password)
     
-    def get_content(self, passlist=[]):
+    def get_files(self, passlist=[]): #Eklenecekler -> fonksiyon ismini get_files yap
 
         folder_dict = {
             "": "",
             "myfiles": "myfiles"
         }
-
 
         pathes_as_key = ["/myfiles/"]
         pathes = ["/myfiles/"]
@@ -153,7 +159,7 @@ class Mediafire:
                 del scanable[0]
                 scanned.append(base_folder)
                 
-                folders = self.get_session_file_info(base_folder, "folders")
+                folders = self.get_session_content_info(base_folder, "folders")
                 
                 for _ in folders:
                     if not _ == []:
@@ -186,7 +192,7 @@ class Mediafire:
         #get file infos
         for _ in n_pathes_as_key:
 
-            for file in self.get_session_file_info(_.split("/")[-2], "files"):
+            for file in self.get_session_content_info(_.split("/")[-2], "files"):
                 
                 print(file)
                 n_files.append(n_pathes[n_pathes_as_key.index(_)]+file["filename"])
@@ -215,6 +221,58 @@ class Mediafire:
         self.write_to_local(self.accountsFile)
         return ret
 
+    def get_dirs(self, find=None):
+
+        folder_dict = {
+            "": "",
+            "myfiles": "myfiles"
+        }
+
+
+        pathes_as_key = ["/myfiles/"]
+        pathes = ["/myfiles/"]
+        scanable = ["myfiles"]
+        scanned = []
+
+
+        while True:
+            try: #scan folders
+                base_folder = scanable[0]
+                
+                del scanable[0]
+                scanned.append(base_folder)
+                
+                folders = self.get_session_content_info(base_folder, "folders")
+                
+                for _ in folders:
+                    if not _ == []:
+                        folder_dict[_['folderkey']] = _['name']
+                        
+                        pathes.append(f"/{folder_dict[base_folder]}/{_['name']}/")
+                        pathes_as_key.append(f"/{base_folder}/{_['folderkey']}/")
+                        
+                        if not _['folderkey'] in scanned and not _['folderkey'] in scanable:
+                            scanable.append(_['folderkey'])
+                    else:
+                        raise IndexError
+            except IndexError: #merge when all folders scanned
+                break
+
+        n_pathes = []
+        n_pathes_as_key = []
+        for i in pathes_as_key:
+            for z in pathes_as_key:
+                if i.split("/")[-2] == z.split("/")[1]:
+                    n_pak = "/".join(i.split("/")[:-2] + z.split("/")[1:])
+                    n_p = "/".join([folder_dict[a] for a in i.split("/")[:-2] + z.split("/")[1:]])
+                    n_pathes_as_key.append(n_pak)
+                    n_pathes.append(n_p)
+        #Eklenecekler -> get_dirs fonksiyonunuda get_content gibi klasör isimleri ayrıntılı olacak şekilde return ettir 
+        if find != None:
+            if find in "-".join(n_pathes):
+                index = [a for a in n_pathes if a.endswith(find+"/")][0]
+
+                return n_pathes_as_key[n_pathes.index(index)]
 
     def get_account_storage(self):
         response = post("https://www.mediafire.com/api/1.5/user/get_info.php",
@@ -279,7 +337,7 @@ class Mediafire:
             return None
         
         
-    def get_session_file_info(self, folderkey, content_type):
+    def get_session_content_info(self, folderkey, content_type):
         data = {"session_token": self.get_session_token(),
                 "response_format": "json",
                 "content_type": content_type,
@@ -292,7 +350,6 @@ class Mediafire:
                         data=data,
                         cookies={c['name']:c['value'] for c in self.chrome.get_cookies()},)
         return response.json()["response"]["folder_content"][content_type]
-    
     def download(self, file, target_directory = None, save_as = None, silent=False):
             
         
