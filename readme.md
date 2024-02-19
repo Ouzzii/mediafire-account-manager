@@ -19,15 +19,19 @@ sudo apt-get -y install imagemagick x11-apps
 
 #Apply
 Xvfb -ac :99 -screen 0 1280x1024x16 & export DISPLAY=:99
+
+#add driver to PATH (for linux)
 ```
 
 ## Available functions
+
 + mediafire.login(email, password), privileges to connect to a specific mediafire account
 + mediafire.upload(directory, file), is used to upload a file
 + mediafire.get_account_storage(), storage information of the logged in mediafire account is shown
-+ mediafire.get_content(), all file and folder information of the logged in mediafire account is given as output
++ mediafire.get_files(), all file information of the logged in mediafire account is given as output
++ mediafire.get_dirs(), all folder information of the logged in mediafire account is given as output
 + mediafire.download(file, target_directory, save_as, silent), used to download all mediafire files in public status, Values other than file are optional
-
++ mediafire.get_source_url(url), given a url argument, it will show you the source file url directly
 
 # Usage
 
@@ -47,7 +51,7 @@ Login to test@example.com
 
 ## Get account contents
 
-The get_content function provides a detailed view of all files in the account, including which mediafire folder they are in, file sizes and download links.
+The get_files function provides a detailed view of all files in the account, including which mediafire folder they are in, file sizes and download links.
 
 ```python
 Python 3.9.2 (default, Mar 12 2021, 04:06:34)
@@ -56,7 +60,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> from mediafire import Mediafire as m
 >>> mediafire = m()
 >>> mediafire.login(email="test@example.com", password="1234")
->>> mediafire.get_content()
+>>> mediafire.get_files()
 [
 	{
 		'url': 'https://www.mediafire.com/file/k3ejksiznbnj2p/MediaFire_-_Getting_Started.pdf/file', 
@@ -68,7 +72,6 @@ Type "help", "copyright", "credits" or "license" for more information.
 	}
 ]
 ```
-
 
 ## Get account storage
 
@@ -86,7 +89,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 ## Upload a file
 
-The upload function uploads the file depending on the parameters entered in the currently entered mediafire account. It is important to have a full file path, so you should be careful to use os.getcwd() if necessary
+The upload function uploads the file depending on The upload function uploads the file depending on the parameters entered in the currently entered mediafire account. It is important to have a full file path, so you should be careful to use os.getcwd() if necessary. the default value for the target parameter is "myfiles", you can upload to that folder by typing only the name of the target folder, if you have 2 folders with the same name you can type the target folder as myfiles/myfolder
 
 ```python
 Python 3.9.2 (default, Mar 12 2021, 04:06:34)
@@ -95,9 +98,9 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> from mediafire import Mediafire as m
 >>> import os
 >>> mediafire = m()
->>> mediafire.upload(directory=os.getcwd(), file="screen.png")
+>>> mediafire.upload(directory=os.getcwd(), file="screen.png", target="myfiles")
 /Your/path/screen.png Completed
->>> mediafire.get_content()
+>>> mediafire.get_files()
 [
 	{
 		'url': 'https://www.mediafire.com/file/k3ejksiznbnj2p/MediaFire_-_Getting_Started.pdf/file', 
@@ -122,21 +125,35 @@ Type "help", "copyright", "credits" or "license" for more information.
 ## Download a file
 
 ### A file can be downloaded in 3 different ways
-#### filename
-+ If the get_content() function was previously executed with the account containing this file, the function automatically writes all file data, including this file, into accounts.json. This way, even if you are working on multiple accounts, or even if no account is entered, all files in the account.json file can be downloaded just by filename
-#### file download link
+
+##### filename
+
++ If the get_files() function was previously executed with the account containing this file, the function automatically writes all file data, including this file, into accounts.json. This way, even if you are working on multiple accounts, or even if no account is entered, all files in the account.json file can be downloaded just by filename
+
+##### file download link
+
 + The file can be downloaded using the mediafire link to the file
-#### file quick key
+
+##### file quick key
+
 + The file can be downloaded using the key called quick key of the file, you can learn the quick key data from the accounts.json file
 
 ### There are 4 parameters of the download function
-### file
+
+#### file
+
 + The parameter where you specify which file to download, file name, file link, quick key of the file can be entered
-### target_directory
+
+#### target_directory
+
 + Parameter where you specify the directory to save the downloaded file, optional, by default it targets your current location
-### save_as
+
+#### save_as
+
 + If you want to decide the name of the file to be downloaded, you can use it, it is the person, if left blank the file will be saved with its own name.
-### silent
+
+#### silents
+
 + It takes a boolean type value, the default value is False, if you want the file to download silently you can give the value True, by default the download status will be shown as a bar.
 
 ```python
@@ -152,8 +169,9 @@ bobtherobber2.swf 10% ███████████████▞▞▞▞�
 ## Accounts.json file
 
 This file is automatically generated by the mediafire library. When a function of the library is executed, the response of the function is automatically saved in this file so that some functions can run faster without the need to run the function again, and can also be used externally by users
-+ When the ```mediafire.get_account_storage()``` function is executed, the storage data for the account is saved 
-+ when the ````mediafire.get_content()``` function is executed, all folders and files belonging to the account are stored in a detailed format
+
++ When the ```mediafire.get_account_storage()``` function is executed, the storage data for the account is saved
++ when the ````mediafire.get_files()``` function is executed, all folders and files belonging to the account are stored in a detailed format
 
 !! email address and password are saved in the accounts.json file, pay attention when storing or sharing files
 
@@ -193,9 +211,7 @@ This file is automatically generated by the mediafire library. When a function o
 }
 ```
 
-
 # Deep notes
 
-+ Mediafire by its very nature may terminate a session after using a function, once the session is terminated the next function you use will automatically detect the session termination and continue the process by logging in again. 
-
++ Mediafire by its very nature may terminate a session after using a function, once the session is terminated the next function you use will automatically detect the session termination and continue the process by logging in again.
 + This application was created for personal needs and then decided to be opened to the public, function/variable names or functions in the source code that may be deemed unnecessary may be removed or updated over time
