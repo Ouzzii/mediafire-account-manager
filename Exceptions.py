@@ -20,4 +20,7 @@ class FileNotFound(Exception):
     def __init__(self, message="File not found in accounts.json"):
         self.message = message
         super().__init__(self.message)
-
+class FolderNotFound(Exception):
+    def __init__(self, message="Folder not found in this account"):
+        self.message = message
+        super().__init__(self.message)
