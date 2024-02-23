@@ -50,7 +50,7 @@ class Mediafire:
         self.options.add_argument('log-level=3')
         self.options.add_argument('--disable-dev-shm-usage')
         self.options.add_argument('window-size=1042x546')
-        self.chrome = webdriver.Chrome(options=self.options, service=Service(driverPath))
+        self.chrome = webdriver.Chrome(options=self.options) #$, service=Service(driverPath))
         self.headless = True if "--headless" in self.options.arguments else False
         self.chrome.set_window_position(0, 0)
         tools = t(self.chrome)
@@ -87,7 +87,8 @@ class Mediafire:
         self.accountsFile[self.email] = {
             "password": self.password
         }
-        self.write_to_local(self.accountsFile)
+        if self.email not in list(self.accountsFile.keys()):
+            self.write_to_local(self.accountsFile)
 
     def upload(self, directory, file, target_directory="myfiles"):
         if target_directory != "myfiles":
@@ -95,7 +96,7 @@ class Mediafire:
                 self.chrome.get("https://app.mediafire.com/"+self.get_dirs(find=target_directory).split("/")[-2])
                 while True:
                     a = self.waitfor(self.css_selector, "button[title='Upload files']", timeout=10)
-                    print(self.chrome.execute_script("""return document.querySelector("button[title='Upload files']").click()"""))
+                    #print(self.chrome.execute_script("""return document.querySelector("button[title='Upload files']").click()"""))
                     self.chrome.save_screenshot("-upload-1.png")
                     break
             except AttributeError:
@@ -103,27 +104,28 @@ class Mediafire:
         path = os.path.join(directory, file)
         target = ""
         
-        #while True:
-        #    #try:
-        #    #    self.waitfor(self.css_selector, "button[aria-label='Upload files']", timeout=3).click()
-        #    #    self.waitfor(self.css_selector, "div[data-text-as-pseudo-element='Select Files to Upload']", timeout=3)
-        #    #    break
-        #    #except:
-        #    #    self.chrome.save_screenshot("screenshot.png")
-        #    #    self.relogin()
+        while True:
+            try:
+                #self.waitfor(self.css_selector, "button[aria-label='Upload files']", timeout=3).click()
+                self.chrome.execute_script("""document.querySelector("button[aria-label='Upload files']").click()""")
+                self.waitfor(self.css_selector, "div[data-text-as-pseudo-element='Select Files to Upload']", timeout=3)
+                break
+            except TimeoutError:
+                self.relogin()
+
         self.waitfor(self.css_selector, "input[type='file']").send_keys(path)
         
 
-        xpath = '/html/body/div/div/div[1]/div[3]/div/div/div/div[2]/div/div[1]/div/div/div/div/div[4]/div[1]/div'
+        xpath = '/html/body/div/div/div[1]/div[3]/div/div/div/div[2]/div/div[1]/div/div/div/div/div[4]/div[1]/div' # XPATH HATALI % OLARAK DEĞER GÖSTERMİYOR QUEUED-PREPARİNG KISMI BOZUK
         
         while True:
             try:
                 status = self.waitfor(self.xpath, xpath, timeout=3, silent=True).get_attribute("data-text-as-pseudo-element")
-                print(status)
                 print(path, status, end=f"{(get_terminal_size()[0]-(len(path)+len(status)+2))*' '}\r")
                 if status == "Queued":
                     try:
                         self.waitfor(self.css_selector, "button[title='Begin upload']", timeout=1, silent=True).click()
+                        #xpath = '/html/body/div/div/div[1]/div[2]/div/div/div/div[2]/div/div[1]/div/div/div/div/div[4]/div[2]/div'
                     except TimeoutError:
                         pass
                 elif status == "Conflict":
@@ -194,7 +196,7 @@ class Mediafire:
 
             for file in self.get_session_content_info(_.split("/")[-2], "files"):
                 
-                print(file)
+                #print(file)
                 n_files.append(n_pathes[n_pathes_as_key.index(_)]+file["filename"])
                 
                 
@@ -387,9 +389,9 @@ class Mediafire:
                         not_downlaoded_size = terminalsize - downloaded_size
                         print(f"{note}{downloaded_size*'█'}{not_downlaoded_size*'▞'}", end="\r")
     
-    def write_to_local(self, dict):
+    def write_to_local(self, dict_):
         with open(accountsFilePath, "w", encoding="utf-8")as f:
-            dump(dict, f, indent=2, ensure_ascii=False)
+            dump(dict_, f, indent=2, ensure_ascii=False)
 
 
     def percentof(self, totalsize, size):
