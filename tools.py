@@ -27,7 +27,7 @@ class tools:
             return self.driver.find_element("xpath", selector)
         else:
             return Nonetype
-    def waitfor(self, function, selector, behavior = None, timeout = 0, silent = False):
+    def waitfor(self, function, selector, behavior = None, timeout = 0, silent = False, exception=False):
         delta = 0.1
         if not timeout:
                 _timeout = 150
@@ -50,7 +50,10 @@ class tools:
                         return 0
                     except ElementClickInterceptedException:
                         pass
-        if _timeout:
+        if _timeout and exception:
             raise TimeoutError
         else:
             return None
+        
+    def printr(message):
+        print(f"{message}{(get_terminal_size()[0]-len(message)-1)*' '}")
